@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="MandrillApiKey" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">ApiKeyGoesHere</Value>
+      <Value Profile="(Default)">f8ZXHKDQxO7rgPqtdxy8XQ</Value>
     </Setting>
   </Settings>
 </SettingsFile>

@@ -14,6 +14,12 @@ namespace MandrillWebhookHandler.Controllers
 {
     public class EventController : ApiController
     {
+        private static MandrillApi _api;
+
+        public EventController()
+        {
+            _api = new MandrillApi(Settings.Default.MandrillApiKey);
+        }
 
         // POST api/event
         public HttpResponseMessage PostEvent(FormDataCollection value)
@@ -22,13 +28,23 @@ namespace MandrillWebhookHandler.Controllers
 
             MandrillApi api = new MandrillApi(Settings.Default.MandrillApiKey);
 
-            foreach(var evt in events)
+            foreach (var evt in events)
             {
-                if (evt.Event == WebHookEventType.Hard_bounce && evt.Msg.Sender.ToLower().Contains("peachtreedata.com"))
+                if (HardBounceSentFromPeachtreeDataDomain(evt))
                 {
-                    var message = new Mandrill.EmailMessage();
+                    CreateAndSendEmailMessage(evt);
+                }
+            }
 
-                    message.to = new List<Mandrill.EmailAddress>()
+            return Request.CreateErrorResponse(HttpStatusCode.OK, "Received");
+        }
+
+        private static void CreateAndSendEmailMessage(WebHookEvent evt)
+        {
+            var metadata = ParseMetadataFromMandrill(evt);
+            var message = new Mandrill.EmailMessage();
+
+            message.to = new List<Mandrill.EmailAddress>()
                     {
                         new EmailAddress{
                             email = "salesteam@peachtreedata.com"
@@ -38,27 +54,43 @@ namespace MandrillWebhookHandler.Controllers
                         }
                     };
 
-                    message.subject = String.Format("Bounced email notification", evt.Event);
-                    message.from_email = "bounce-notifier@peachtreedata.com";
+            message.subject = String.Format("Bounced email notification", evt.Event);
+            message.from_email = "bounce-notifier@peachtreedata.com";
 
-                    StringBuilder body = new StringBuilder();
-                    body.AppendFormat("An email being sent to {0} has bounced.", evt.Msg.Email).AppendLine();
-                    body.AppendFormat("Email sent from address: {0}", evt.Msg.Sender).AppendLine();
-                    body.AppendFormat("Email subject line: {0}", evt.Msg.Subject).AppendLine();
-                    body.AppendFormat("Message sent at: {0}", TimeZoneInfo.ConvertTimeFromUtc(evt.Msg.TimeStamp, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"))).AppendLine();
-                    body.AppendLine();
-                    body.AppendLine("Please contact the customer and get an updated email address, or remove this email address from all systems.");
-                    body.AppendLine();
-                    body.AppendLine("This includes: Goldmine, JobTracker & SecureFTP");
+            StringBuilder body = new StringBuilder();
+            body.AppendFormat("An email being sent to {0} has bounced.", evt.Msg.Email).AppendLine();
+            body.AppendFormat("Email sent from address: {0}", evt.Msg.Sender).AppendLine();
+            body.AppendFormat("Email subject line: {0}", evt.Msg.Subject).AppendLine();
+            body.AppendLine();
+            body.AppendLine("Please contact the customer and get an updated email address, or remove this email address from all systems.");
+            body.AppendLine("This includes: Goldmine, JobTracker & SecureFTP");
+            body.AppendFormat("Message sent at: {0}", TimeZoneInfo.ConvertTimeFromUtc(evt.Msg.TimeStamp, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"))).AppendLine();
+            body.AppendLine("----");
 
-                    message.text = body.ToString();
-
-                    api.SendMessage(message);
-                }
+            if (metadata.ContainsKey("CustID"))
+            {
+                body.AppendFormat("Customer ID: {0}", metadata["CustID"]);
             }
 
-            var response = Request.CreateErrorResponse(HttpStatusCode.OK, "Received");
-            return response;
+            message.text = body.ToString();
+
+            _api.SendMessage(message);
+        }
+
+        private static Dictionary<string, string> ParseMetadataFromMandrill(WebHookEvent evt)
+        {
+            var metadata = new Dictionary<string, string>();
+
+            if (evt.Msg.Metadata != null)
+            {
+                metadata = evt.Msg.Metadata.ToDictionary(m => m.Key, m => m.Value);
+            }
+            return metadata;
+        }
+
+        private static bool HardBounceSentFromPeachtreeDataDomain(WebHookEvent evt)
+        {
+            return evt.Event == WebHookEventType.Hard_bounce && evt.Msg.Sender.ToLower().Contains("peachtreedata.com");
         }
     }
 }

@@ -25,7 +25,7 @@ namespace MandrillWebhookHandler.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("ApiKeyGoesHere")]
+        [global::System.Configuration.DefaultSettingValueAttribute("f8ZXHKDQxO7rgPqtdxy8XQ")]
         public string MandrillApiKey {
             get {
                 return ((string)(this["MandrillApiKey"]));
