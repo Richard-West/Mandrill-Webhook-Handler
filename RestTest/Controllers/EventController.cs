@@ -32,14 +32,14 @@ namespace MandrillWebhookHandler.Controllers
             {
                 if (HardBounceSentFromPeachtreeDataDomain(evt))
                 {
-                    CreateAndSendEmailMessage(evt);
+                    CreateAndSendEmailMessageFromTemplate(evt);
                 }
             }
 
             return Request.CreateErrorResponse(HttpStatusCode.OK, "Received");
         }
 
-        private static void CreateAndSendEmailMessage(WebHookEvent evt)
+        private void CreateAndSendEmailMessageFromTemplate(WebHookEvent evt)
         {
             var metadata = ParseMetadataFromMandrill(evt);
             var message = new Mandrill.EmailMessage();
@@ -57,24 +57,26 @@ namespace MandrillWebhookHandler.Controllers
             message.subject = String.Format("Bounced email notification", evt.Event);
             message.from_email = "bounce-notifier@peachtreedata.com";
 
-            StringBuilder body = new StringBuilder();
-            body.AppendFormat("An email being sent to {0} has bounced.", evt.Msg.Email).AppendLine();
-            body.AppendFormat("Email sent from address: {0}", evt.Msg.Sender).AppendLine();
-            body.AppendFormat("Email subject line: {0}", evt.Msg.Subject).AppendLine();
-            body.AppendLine();
-            body.AppendLine("Please contact the customer and get an updated email address, or remove this email address from all systems.");
-            body.AppendLine("This includes: Goldmine, JobTracker & SecureFTP");
-            body.AppendFormat("Message sent at: {0}", TimeZoneInfo.ConvertTimeFromUtc(evt.Msg.TimeStamp, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time"))).AppendLine();
-            body.AppendLine("----");
 
             if (metadata.ContainsKey("CustID"))
-            {
-                body.AppendFormat("Customer ID: {0}", metadata["CustID"]);
-            }
+                message.AddGlobalVariable("customerID", metadata["CustID"].ToUpper());
+            else
+                message.AddGlobalVariable("customerID", "Unknown");
+            message.AddGlobalVariable("bouncedEmailAddress", evt.Msg.Email);
+            message.AddGlobalVariable("application", GetSendingApplicationName(evt));
+            message.AddGlobalVariable("timesent", TimeZoneInfo.ConvertTimeFromUtc(evt.Msg.TimeStamp, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time")).ToString());
 
-            message.text = body.ToString();
+            _api.SendMessage(message, "mandrill-email-bounce", null);
+        }
 
-            _api.SendMessage(message);
+        private string GetSendingApplicationName(WebHookEvent evt)
+        {
+            if (evt.Msg.Tags.Contains("SecureFTP"))
+                return "Secure FTP Site";
+            if (evt.Msg.Subject.Contains("FAST"))
+                return "JobTracker - FAST System";
+
+            return string.Format("Unknown Application. Subject line was: {0}", evt.Msg.Subject);
         }
 
         private static Dictionary<string, string> ParseMetadataFromMandrill(WebHookEvent evt)
