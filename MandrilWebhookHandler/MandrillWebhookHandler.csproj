@@ -14,7 +14,7 @@
     <RootNamespace>MandrillWebhookHandler</RootNamespace>
     <AssemblyName>MandrillWebhookHandler</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <UseIISExpress>false</UseIISExpress>
+    <UseIISExpress>true</UseIISExpress>
     <IISExpressSSLPort />
     <IISExpressAnonymousAuthentication />
     <IISExpressWindowsAuthentication />
@@ -134,7 +134,7 @@
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>49281</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
-          <IISUrl>http://localhost/RestTest</IISUrl>
+          <IISUrl>http://localhost:49281/</IISUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>
