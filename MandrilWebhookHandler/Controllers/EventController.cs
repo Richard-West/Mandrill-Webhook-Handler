@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
+using MailChimp;
+using MailChimp.Helper;
 using Mandrill;
 using System.Diagnostics;
 using System.Net.Http.Formatting;
@@ -14,11 +16,13 @@ namespace MandrillWebhookHandler.Controllers
 {
     public class EventController : ApiController
     {
-        private static MandrillApi _api;
+        private static MandrillApi _mandrillApi;
+        private static MailChimpManager _mailChimpApi;
 
         public EventController()
         {
-            _api = new MandrillApi(Settings.Default.MandrillApiKey);
+            _mandrillApi = new MandrillApi(Settings.Default.MandrillApiKey);
+            _mailChimpApi = new MailChimpManager(Settings.Default.MailChimpApiKey);
         }
 
         // POST api/event
@@ -30,13 +34,36 @@ namespace MandrillWebhookHandler.Controllers
 
             foreach (var evt in events)
             {
-                if (HardBounceSentFromPeachtreeDataDomain(evt))
+                if (HardBounceOrUnsubscribeFromMailChimpList(evt))
+                {
+                    UnsubscribeEmailfromMailChimpList(evt);
+                }
+                else if (HardBounceSentFromPeachtreeDataDomain(evt))
                 {
                     CreateAndSendEmailMessageFromTemplate(evt);
                 }
             }
 
             return Request.CreateErrorResponse(HttpStatusCode.OK, "Received");
+        }
+
+        private static bool HardBounceOrUnsubscribeFromMailChimpList(WebHookEvent evt)
+        {
+            var metadata = ParseMetadataFromMandrill(evt);
+            return metadata.ContainsKey("MCList") && (evt.Event == WebHookEventType.Hard_bounce || evt.Event == WebHookEventType.Unsub);
+        }
+
+        private void UnsubscribeEmailfromMailChimpList(WebHookEvent evt)
+        {
+            var metadata = ParseMetadataFromMandrill(evt);
+            try
+            {
+                var result = _mailChimpApi.Unsubscribe(metadata["MCList"], new EmailParameter() { Email = evt.Msg.Email }, false, false, false);
+            }
+            catch (Exception)
+            {
+            }
+            
         }
 
         private void CreateAndSendEmailMessageFromTemplate(WebHookEvent evt)
@@ -66,7 +93,7 @@ namespace MandrillWebhookHandler.Controllers
             message.AddGlobalVariable("application", GetSendingApplicationName(evt));
             message.AddGlobalVariable("timesent", TimeZoneInfo.ConvertTimeFromUtc(evt.Msg.TimeStamp, TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time")).ToString());
 
-            _api.SendMessage(message, "mandrill-email-bounce", null);
+            _mandrillApi.SendMessage(message, "mandrill-email-bounce", null);
         }
 
         private string GetSendingApplicationName(WebHookEvent evt)
