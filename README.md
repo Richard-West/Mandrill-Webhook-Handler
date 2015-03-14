@@ -3,11 +3,15 @@ Mandrill-Webhook-Handler
 
 The purpose of this solution is to provide a listener for WebHook events from Mandrill.
 
-I am specifically filtering for Hard Bounces from Mandrill. 
-When a bounce occurs mandrill will fire a WebHook request to the server setup within the Mandrill portal.
-This solution is running where I am pointing Mandrill to send the WebHook events to.
-When a Hard Bounce is detected then I am sending an email notification to my internal users letting them know.
-This allows them to update our system with the correct email address for any customers and be aware 
-that the original email was not received.
+I have Mandrill configured to fire a webhook when a hard bounce occurs. 
 
-Obviously this could be extened to any type of event, but this is what works for me in this limited use case.
+This C# web api application is designed to handle these webhooks from Mandrill.
+
+When a hard bounce occurs, Mandrill will create a webhook request that is sent to this application.
+This application will receive this webhook and create and send an email to our internal team alerting 
+them about the email bounce.
+
+Other Mandrill events, such as open events or click events, could be setup to be handled as well. 
+
+Addtionally instead of sending an email to a set of users letting them know about the event, this
+application could be easily modified to allow it to insert, or update, a record in a database.
